@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MealPlan — your week, planned</title>
+<meta name="description" content="A calm weekly meal planner. Plan lunches and dinners, swipe to swap, and build a shopping list. Works offline, stores everything on your device.">
+<meta name="theme-color" content="#fbf6f0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14100e" media="(prefers-color-scheme: dark)">
+
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon.png" sizes="any">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+<!-- iOS home-screen app -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="MealPlan">
+
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<div class="app">
+  <header class="topbar">
+    <div class="topbar__row">
+      <div class="brand">
+        <h1>MealPlan</h1>
+        <span id="brandSub">this week</span>
+      </div>
+      <nav class="weeknav" id="weeknav" aria-label="Week">
+        <button type="button" data-week="-1" aria-label="Previous week">‹</button>
+        <div class="weeknav__label">
+          <span id="weekRelative">This week</span>
+          <small id="weekLabel">—</small>
+        </div>
+        <button type="button" data-week="1" aria-label="Next week">›</button>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- ------------------------------------------------------ week view -->
+    <section class="view is-active" id="view-week" aria-label="Weekly plan">
+      <div class="actions">
+        <button class="btn btn--primary" id="btnGenerate">✨ Plan my week</button>
+        <button class="btn" id="btnShopping">🧾 Shopping list</button>
+        <button class="btn btn--ghost" id="btnClear">Clear</button>
+      </div>
+      <div class="week" id="weekGrid"></div>
+      <p class="note" style="text-align:center;margin:22px 6px 0">
+        Swipe a meal sideways to swap it · press and hold to drag it onto another day · tap for the recipe card
+      </p>
+    </section>
+
+    <!-- -------------------------------------------------- shopping view -->
+    <section class="view" id="view-shop" aria-label="Shopping list">
+      <div class="actions">
+        <button class="btn btn--primary" id="btnBuildList">🧾 Generate shopping list</button>
+        <button class="btn" id="btnCopyList">Copy</button>
+        <button class="btn btn--ghost" id="btnResetTicks">Untick all</button>
+      </div>
+      <div id="shopBody"></div>
+    </section>
+
+    <!-- --------------------------------------------------- library view -->
+    <section class="view" id="view-meals" aria-label="Meals">
+      <div class="actions">
+        <button class="btn btn--primary" id="btnAddMeal">＋ Add a meal</button>
+      </div>
+      <label class="field">
+        <span class="sr-only">Search meals</span>
+        <input class="input" type="search" id="mealSearch" placeholder="Search meals…" autocomplete="off">
+      </label>
+      <div class="filters" id="mealFilters">
+        <button type="button" data-filter="all" aria-pressed="true">All</button>
+        <button type="button" data-filter="fav" aria-pressed="false">★ Favourites</button>
+        <button type="button" data-filter="mine" aria-pressed="false">Mine</button>
+        <button type="button" data-filter="off" aria-pressed="false">Hidden</button>
+      </div>
+      <div class="library" id="mealLibrary"></div>
+    </section>
+
+    <!-- -------------------------------------------------- settings view -->
+    <section class="view" id="view-settings" aria-label="Settings">
+      <div class="section-title"><h2>Household</h2></div>
+      <div class="card">
+        <div class="setting">
+          <div class="setting__text">
+            <b>People eating</b>
+            <span>Shopping quantities scale to this</span>
+          </div>
+          <div class="stepper">
+            <button type="button" id="peopleDown" aria-label="Fewer people">−</button>
+            <output id="peopleValue">2</output>
+            <button type="button" id="peopleUp" aria-label="More people">＋</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title"><h2>Meals per day</h2><span>Which ones to plan</span></div>
+      <div class="card" id="slotToggles"></div>
+
+      <div class="section-title"><h2>AI planning</h2><span>Optional</span></div>
+      <div class="card">
+        <div class="setting">
+          <div class="setting__text">
+            <b>Use OpenRouter</b>
+            <span>Free models pick your week instead of the built-in planner</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="aiEnabled">
+            <span></span>
+          </label>
+        </div>
+        <div id="aiFields" hidden>
+          <div class="setting" style="display:block">
+            <label class="field" style="margin:0 0 12px">
+              <span>OpenRouter API key</span>
+              <input class="input" type="password" id="aiKey" placeholder="sk-or-v1-…" autocomplete="off" spellcheck="false">
+            </label>
+            <label class="field" style="margin:0 0 12px">
+              <span>Free model</span>
+              <select class="input" id="aiModel"></select>
+            </label>
+            <div class="actions actions--plain" style="margin:0">
+              <button class="btn btn--sm" id="btnRefreshModels">↻ Refresh free models</button>
+              <button class="btn btn--sm" id="btnTestAI">Test connection</button>
+            </div>
+          </div>
+          <div class="setting" style="display:block">
+            <div class="callout">
+              <b>Heads up:</b> there is no server here, so your key is stored in this browser
+              and sent straight to openrouter.ai from your device. Use a free-tier key you are
+              happy to keep on your phone, and remove it any time.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title"><h2>Install on iPhone</h2></div>
+      <div class="card">
+        <div class="setting" style="display:block">
+          <div class="callout" style="background:var(--green-soft)">
+            Open this page in Safari → tap <b>Share</b> ↑ → <b>Add to Home Screen</b>.
+            It then opens full screen, works offline, and keeps your plan on the device.
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title"><h2>Your data</h2><span>Nothing leaves the device</span></div>
+      <div class="card">
+        <div class="setting">
+          <div class="setting__text"><b>Export</b><span>Download a JSON backup</span></div>
+          <button class="btn btn--sm" id="btnExport">Export</button>
+        </div>
+        <div class="setting">
+          <div class="setting__text"><b>Import</b><span>Restore from a backup file</span></div>
+          <button class="btn btn--sm" id="btnImport">Import</button>
+          <input type="file" id="importFile" accept="application/json,.json" hidden>
+        </div>
+        <div class="setting">
+          <div class="setting__text"><b>Reset everything</b><span>Plans, meals and settings</span></div>
+          <button class="btn btn--sm btn--danger" id="btnReset">Reset</button>
+        </div>
+      </div>
+
+      <p class="note" style="text-align:center;margin:24px 0 0">
+        MealPlan · static, offline, no account · <span id="storageInfo"></span>
+      </p>
+    </section>
+  </main>
+</div>
+
+<nav class="tabbar" role="tablist" aria-label="Sections">
+  <button type="button" role="tab" data-view="week" aria-selected="true"><i>🗓️</i>Week</button>
+  <button type="button" role="tab" data-view="shop" aria-selected="false"><i>🧾</i>Shop</button>
+  <button type="button" role="tab" data-view="meals" aria-selected="false"><i>🍽️</i>Meals</button>
+  <button type="button" role="tab" data-view="settings" aria-selected="false"><i>⚙️</i>Settings</button>
+</nav>
+
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-hidden="true">
+  <div class="sheet__grip"></div>
+  <div id="sheetBody"></div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script type="module" src="assets/js/app.js"></script>
+</body>
+</html>
