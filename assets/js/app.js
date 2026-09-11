@@ -58,12 +58,32 @@ function swallowNextClick() {
 }
 
 let toastTimer;
-function toast(message) {
+
+/**
+ * A word about what just happened. Pass `undo` and it also offers a way back,
+ * which anything destructive done by a swipe ought to have.
+ */
+function toast(message, undo = null) {
   const el = $('#toast');
   el.textContent = message;
+  el.classList.toggle('toast--undo', !!undo);
+
+  if (undo) {
+    const btn = document.createElement('button');
+    btn.className = 'toast__undo';
+    btn.type = 'button';
+    btn.textContent = 'Undo';
+    btn.addEventListener('click', () => {
+      el.classList.remove('is-open');
+      clearTimeout(toastTimer);
+      undo();
+    });
+    el.append(btn);
+  }
+
   el.classList.add('is-open');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('is-open'), 2600);
+  toastTimer = setTimeout(() => el.classList.remove('is-open'), undo ? 5200 : 2600);
 }
 
 /* --------------------------------------------------------------- sheet -- */
@@ -158,7 +178,7 @@ function renderWeek() {
       const fav = isFavourite(meal.id);
       return `
         <div class="slot" data-day="${day}" data-slot="${slot}">
-          <div class="slot__hint" aria-hidden="true"><span>↺ swap</span><span>swap ↻</span></div>
+          <div class="slot__hint" aria-hidden="true"><span class="slot__hint--hide">⊘ hide</span><span>swap ↻</span></div>
           <div class="slot__card" role="button" tabindex="0"
                aria-label="${DAY_NAMES[day]} ${SLOT_NAMES[slot].toLowerCase()}: ${esc(meal.name)}">
             ${artHTML(meal)}
@@ -179,11 +199,6 @@ function renderWeek() {
                       title="${fav ? 'Remove from favourites' : 'Add to favourites'}"
                       aria-label="${fav ? 'Unfavourite' : 'Favourite'} ${esc(meal.name)}">
                 ${fav ? '★' : '☆'}
-              </button>
-              <button class="slot__act" type="button" data-slot-act="hide"
-                      title="Hide this meal and swap it out"
-                      aria-label="Hide ${esc(meal.name)} and swap in something else">
-                ⊘
               </button>
             </div>
           </div>
@@ -228,19 +243,28 @@ function hideAndSwap(mealId, fromDay, fromSlot) {
   }
 
   const taken = [];
-  let replaced = 0;
+  const changed = [];
   for (const { day, slot } of slots) {
     const entry = getEntry(currentWeek, day, slot);
     if (!entry || entry.mealId !== mealId) continue;
     const next = bestMealFor(currentWeek, day, slot, { exclude: taken });
     setEntry(currentWeek, day, slot, next ? next.id : null);
-    if (next) { taken.push(next.id); replaced += 1; }
+    changed.push({ day, slot });
+    if (next) taken.push(next.id);
   }
 
   haptic();
-  toast(replaced
-    ? `${name} hidden — swapped for ${mealById(taken[0]).name}`
-    : `${name} hidden`);
+
+  // Enough to put everything back: the meal returns to the catalogue and each
+  // slot goes back to what it held.
+  const undo = () => {
+    if (isHidden(mealId)) toggleHidden(mealId);
+    for (const { day, slot } of changed) setEntry(currentWeek, day, slot, mealId);
+    toast(`${name} is back`);
+  };
+
+  // Kept short: the replacement is already sitting there on the card.
+  toast(`${name} hidden`, undo);
 }
 
 /* ------------------------------------------------------- week balance -- */
@@ -545,15 +569,23 @@ function onPointerUp(e) {
       return;
     }
 
-    const direction = dx > 0 ? 1 : -1;
-    const next = nextMealFor(currentWeek, g.day, g.slot, g.entry.mealId, direction);
-    if (!next) { resetCard(g.card); toast('No other meal fits this slot'); return; }
+    const flingAway = (then) => {
+      g.card.style.transition = 'transform .16s ease, opacity .16s ease';
+      g.card.style.transform = `translateX(${dx > 0 ? 420 : -420}px)`;
+      g.card.style.opacity = '0';
+      haptic();
+      setTimeout(then, 140);
+    };
 
-    g.card.style.transition = 'transform .16s ease, opacity .16s ease';
-    g.card.style.transform = `translateX(${direction * 420}px)`;
-    g.card.style.opacity = '0';
-    haptic();
-    setTimeout(() => setEntry(currentWeek, g.day, g.slot, next.id), 140);
+    // Right sends the meal away for good; left just asks for a different one.
+    if (dx > 0) {
+      flingAway(() => hideAndSwap(g.entry.mealId, g.day, g.slot));
+      return;
+    }
+
+    const next = nextMealFor(currentWeek, g.day, g.slot, g.entry.mealId, -1);
+    if (!next) { resetCard(g.card); toast('No other meal fits this slot'); return; }
+    flingAway(() => setEntry(currentWeek, g.day, g.slot, next.id));
     return;
   }
 
