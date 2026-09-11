@@ -1,6 +1,6 @@
 /* MealPlan service worker: cache-first for the shell, so the app opens
    instantly and keeps working with no connection at all. */
-const CACHE = 'mealplan-v1';
+const CACHE = 'mealplan-v2';
 
 const SHELL = [
   './',

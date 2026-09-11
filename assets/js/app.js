@@ -947,6 +947,7 @@ function bindChrome() {
   });
 
   $('#scrim').addEventListener('click', closeSheet);
+  $('#sheetClose').addEventListener('click', closeSheet);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && sheetIsOpen()) closeSheet(); });
 
   // Week view

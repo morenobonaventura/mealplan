@@ -335,10 +335,29 @@ button { cursor: pointer; border: none; background: none; }
   .sheet { left: 50%; right: auto; width: 560px; transform: translate(-50%, 102%); border-radius: 26px 26px 0 0; }
   .sheet.is-open { transform: translate(-50%, 0); }
 }
-.sheet__grip {
-  width: 42px; height: 4px; border-radius: 999px;
-  background: var(--line-strong); margin: 4px auto 14px;
+/* Sticky top bar: keeps the close button reachable on phones, where a tall
+   sheet leaves no scrim to tap away on. */
+.sheet__bar {
+  position: sticky; top: 0; z-index: 2;
+  display: flex; align-items: center; justify-content: flex-end;
+  margin: -10px -18px 10px;
+  padding: 10px 18px 8px;
+  background: var(--surface);
+  border-radius: 26px 26px 0 0;
 }
+.sheet__grip {
+  position: absolute; left: 50%; top: 12px; transform: translateX(-50%);
+  width: 42px; height: 4px; border-radius: 999px;
+  background: var(--line-strong);
+}
+.sheet__close {
+  width: 34px; height: 34px; border-radius: 999px;
+  display: grid; place-items: center;
+  border: 1px solid var(--line); background: var(--surface-2);
+  color: var(--muted); font-size: 21px; line-height: 1; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.sheet__close:active { background: var(--line); }
 .sheet h2 { font-size: 22px; margin-bottom: 2px; }
 .sheet__sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
 
