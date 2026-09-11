@@ -7,8 +7,14 @@ import { AISLES } from './meals.js';
 import {
   DAYS, allMeals, mealById, getPlan, slotKey, isFavourite, getSettings, slotsForDay,
 } from './store.js';
+import {
+  nutritionOf, idealNext, fitPenalty, meatlessPressure, isMeatless, keepsBalance,
+} from './nutrition.js';
 
 const WEEKEND = ['Fri', 'Sat', 'Sun'];
+
+/** How far off the best fit a meal can be and still count as a good swap. */
+const GOOD_FIT_MARGIN = 2.2;
 
 /** Meals that make sense in this slot at all. */
 export function candidatesFor(slot) {
@@ -20,7 +26,10 @@ export function candidatesFor(slot) {
  * Score a meal for a given position in the week.
  * Higher is better. `context` carries what is already planned around it.
  */
-function score(meal, { day, slot, usedIds, neighbourProteins, weekProteins, dayCuisines }) {
+function score(meal, {
+  day, slot, usedIds, neighbourProteins, weekProteins, dayCuisines,
+  want, chosen, slotTotal,
+}) {
   let s = 10;
 
   if (usedIds.has(meal.id)) s -= 60;                      // no repeats within a week
@@ -44,6 +53,11 @@ function score(meal, { day, slot, usedIds, neighbourProteins, weekProteins, dayC
   const seen = weekProteins.filter((p) => p === meal.protein).length;
   s -= seen * 6;                                          // spread proteins over the week
 
+  // Keep the week's nutrition heading where it should: how close is this meal
+  // to what the remaining slots still need?
+  if (want) s -= fitPenalty(meal, want) * 5;
+  if (chosen && isMeatless(meal)) s += meatlessPressure(chosen, slotTotal) * 30;
+
   return s + Math.random() * 7;                           // a little shuffle
 }
 
@@ -58,14 +72,33 @@ export function generateWeek(weekIso, { onlyEmpty = false } = {}) {
   const usedIds = new Set();
   const proteinByDay = {};
   const cuisineByDay = {};
-  for (const [key, entry] of Object.entries(plan)) {
-    if (!entry || !entry.locked) continue;
-    const meal = mealById(entry.mealId);
-    if (!meal) continue;
-    usedIds.add(meal.id);
-    const [day] = key.split('|');
-    (proteinByDay[day] = proteinByDay[day] || []).push(meal.protein);
-    (cuisineByDay[day] = cuisineByDay[day] || []).push(meal.cuisine);
+
+  // What the week already carries, so the meals we pick top it up rather than
+  // start from scratch. Locked meals are fixed points we plan around.
+  const running = { kcal: 0, protein: 0, carbs: 0, fibre: 0, fat: 0 };
+  const chosen = [];
+  const plannedDays = DAYS.filter((d) => slotsForDay(d).length).length;
+  const slotTotal = DAYS.reduce((n, d) => n + slotsForDay(d).length, 0);
+  let slotsLeft = 0;
+
+  // A meal we are keeping (locked, or untouched because we are only filling
+  // gaps) counts towards the week. Everything else is ours to replace, so the
+  // first pick already knows how much of the week is left to spread across.
+  const keeping = (entry) => entry && (entry.locked || onlyEmpty);
+
+  for (const day of DAYS) {
+    for (const slot of slotsForDay(day)) {
+      const entry = plan[slotKey(day, slot)];
+      if (!keeping(entry)) { slotsLeft += 1; continue; }
+      const meal = mealById(entry.mealId);
+      if (!meal) { slotsLeft += 1; continue; }
+      usedIds.add(meal.id);
+      (proteinByDay[day] = proteinByDay[day] || []).push(meal.protein);
+      (cuisineByDay[day] = cuisineByDay[day] || []).push(meal.cuisine);
+      const n = nutritionOf(meal);
+      for (const k of Object.keys(running)) running[k] += n[k] || 0;
+      chosen.push(meal);
+    }
   }
 
   DAYS.forEach((day, dayIndex) => {
@@ -81,6 +114,7 @@ export function generateWeek(weekIso, { onlyEmpty = false } = {}) {
       ];
       const weekProteins = Object.values(proteinByDay).flat();
 
+      const want = idealNext(running, slotsLeft, plannedDays);
       const pool = candidatesFor(slot);
       let best = null;
       let bestScore = -Infinity;
@@ -88,6 +122,7 @@ export function generateWeek(weekIso, { onlyEmpty = false } = {}) {
         const value = score(meal, {
           day, slot, usedIds, neighbourProteins, weekProteins,
           dayCuisines: cuisineByDay[day] || [],
+          want, chosen, slotTotal,
         });
         if (value > bestScore) { bestScore = value; best = meal; }
       }
@@ -96,6 +131,10 @@ export function generateWeek(weekIso, { onlyEmpty = false } = {}) {
       usedIds.add(best.id);
       (proteinByDay[day] = proteinByDay[day] || []).push(best.protein);
       (cuisineByDay[day] = cuisineByDay[day] || []).push(best.cuisine);
+      const picked = nutritionOf(best);
+      for (const k of Object.keys(running)) running[k] += picked[k] || 0;
+      chosen.push(best);
+      slotsLeft -= 1;
       assignments.push({ day, slot, mealId: best.id });
     }
   });
@@ -104,33 +143,95 @@ export function generateWeek(weekIso, { onlyEmpty = false } = {}) {
 }
 
 /**
- * The meal a swipe should reveal: the next sensible alternative for this slot,
- * skipping anything already on the plan that week.
+ * Every meal that could go in one slot, best first, judged on what the rest of
+ * the week already provides. A swap should leave the week as balanced as it
+ * found it, so the meals that plug the week's actual gap come out on top.
+ *
+ * Each entry carries `penalty` (lower is a better fit) and `good`, which marks
+ * the handful worth putting a nudge beside in the picker.
  */
-export function nextMealFor(weekIso, day, slot, currentId, direction = 1) {
+export function alternativesFor(weekIso, day, slot) {
   const pool = candidatesFor(slot);
-  if (!pool.length) return null;
+  if (!pool.length) return [];
 
   const plan = getPlan(weekIso);
-  const elsewhere = new Set(
-    Object.entries(plan)
-      .filter(([key]) => key !== slotKey(day, slot))
-      .map(([, entry]) => entry && entry.mealId)
-      .filter(Boolean),
-  );
+  const here = slotKey(day, slot);
 
-  const ordered = [...pool].sort((a, b) => a.name.localeCompare(b.name));
-  const start = ordered.findIndex((m) => m.id === currentId);
+  // The week as it stands with this slot emptied: what the replacement has to
+  // make up on its own.
+  const running = { kcal: 0, protein: 0, carbs: 0, fibre: 0, fat: 0 };
+  const others = [];
+  const elsewhere = new Set();
+  const neighbourProteins = [];
+  const dayIndex = DAYS.indexOf(day);
+  const around = [DAYS[dayIndex - 1], day, DAYS[dayIndex + 1]].filter(Boolean);
+
+  for (const d of DAYS) {
+    for (const sl of slotsForDay(d)) {
+      const key = slotKey(d, sl);
+      if (key === here) continue;
+      const meal = plan[key] && mealById(plan[key].mealId);
+      if (!meal) continue;
+      elsewhere.add(meal.id);
+      others.push(meal);
+      if (around.includes(d)) neighbourProteins.push(meal.protein);
+      const n = nutritionOf(meal);
+      for (const k of Object.keys(running)) running[k] += n[k] || 0;
+    }
+  }
+
+  const plannedDays = DAYS.filter((d) => slotsForDay(d).length).length;
+  const slotTotal = DAYS.reduce((n, d) => n + slotsForDay(d).length, 0);
+  const want = idealNext(running, 1, plannedDays);
+  const weekend = WEEKEND.includes(day);
+
+  const ranked = pool
+    .map((meal) => {
+      let penalty = fitPenalty(meal, want);
+      if (elsewhere.has(meal.id)) penalty += 3;                 // already on the plan
+      if (neighbourProteins.includes(meal.protein)) penalty += 1;
+      if (isMeatless(meal)) penalty -= meatlessPressure(others, slotTotal) * 6;
+      if (slot === 'lunch' && (meal.weight || 2) >= 3) penalty += 0.8;
+      if (slot === 'dinner' && !weekend && (meal.time || 30) > 45) penalty += 0.8;
+      if (isFavourite(meal.id)) penalty -= 0.8;
+      return { meal, penalty, balanced: keepsBalance(meal, running, plannedDays) };
+    })
+    .sort((a, b) => a.penalty - b.penalty);
+
+  // One meal in fourteen barely shifts a seven-day average, so "still balanced"
+  // is true of almost anything and would be a badge on every row. Flag the ones
+  // that both keep the week in shape and are near the top of the ranking.
+  const best = ranked.length ? ranked[0].penalty : 0;
+  for (const a of ranked) a.good = a.balanced && a.penalty <= best + GOOD_FIT_MARGIN;
+  return ranked;
+}
+
+/** The single best meal to drop into a slot — used by Hide and by shuffles. */
+export function bestMealFor(weekIso, day, slot, { exclude = [] } = {}) {
+  const skip = new Set(exclude);
+  const found = alternativesFor(weekIso, day, slot).find((a) => !skip.has(a.meal.id));
+  return found ? found.meal : null;
+}
+
+/**
+ * The meal a swipe should reveal: the next sensible alternative for this slot.
+ * Ordered by how well each one keeps the week balanced, so swiping walks from
+ * the best fit outwards rather than alphabetically.
+ */
+export function nextMealFor(weekIso, day, slot, currentId, direction = 1) {
+  const ranked = alternativesFor(weekIso, day, slot).map((a) => a.meal);
+  if (!ranked.length) return null;
+
+  // The ranking ignores whatever is in this slot right now, so it stays put
+  // between swipes and stepping through it is stable in both directions.
+  const start = ranked.findIndex((m) => m.id === currentId);
   const step = direction >= 0 ? 1 : -1;
 
-  for (let i = 1; i <= ordered.length; i += 1) {
-    const idx = (((start + i * step) % ordered.length) + ordered.length) % ordered.length;
-    const meal = ordered[idx];
-    if (meal.id === currentId) continue;
-    if (elsewhere.has(meal.id) && i < ordered.length) continue; // prefer something new
-    return meal;
+  for (let i = 1; i <= ranked.length; i += 1) {
+    const idx = (((start + i * step) % ranked.length) + ranked.length) % ranked.length;
+    if (ranked[idx].id !== currentId) return ranked[idx];
   }
-  return ordered.find((m) => m.id !== currentId) || null;
+  return null;
 }
 
 /* -------------------------------------------------------- shopping list -- */

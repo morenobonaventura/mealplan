@@ -661,3 +661,52 @@ select.input {
   margin: 0; padding: 2px 14px 14px;
   font-size: 13px; color: var(--muted); font-style: italic;
 }
+
+/* ========================================================== week balance */
+.balance {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 16px 16px 14px;
+  margin-bottom: 18px;
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.04));
+}
+.balance__head { display: flex; gap: 12px; align-items: flex-start; }
+.balance__mark {
+  flex: none; width: 42px; height: 42px; border-radius: 14px;
+  display: grid; place-items: center; font-size: 21px;
+  background: var(--surface-2);
+}
+.balance--good .balance__mark { background: var(--green-soft); }
+.balance--warn .balance__mark { background: var(--accent-soft); }
+.balance__title { font-size: 16.5px; font-weight: 650; line-height: 1.25; }
+.balance__detail { font-size: 13px; color: var(--muted); margin-top: 3px; line-height: 1.45; }
+
+.balance__grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  margin-top: 14px;
+}
+.balance__stat { text-align: center; }
+.balance__value { font-size: 17px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.balance__name { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.balance__track {
+  height: 5px; border-radius: 999px; background: var(--line);
+  margin: 7px 0 5px; overflow: hidden;
+}
+.balance__fill { display: block; height: 100%; border-radius: 999px; background: var(--green); }
+.balance__stat.is-off .balance__fill { background: var(--accent); }
+.balance__word { font-size: 10.5px; color: var(--muted); }
+.balance__stat.is-off .balance__word { color: var(--accent); font-weight: 600; }
+
+.balance__foot {
+  font-size: 11px; color: var(--muted); text-align: center;
+  margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line);
+  line-height: 1.5;
+}
+
+@media (max-width: 380px) {
+  .balance__grid { gap: 5px; }
+  .balance__value { font-size: 15.5px; }
+  .balance__name, .balance__word { font-size: 10px; }
+}
+.picker-item__fit { font-size: 14px; line-height: 1; }

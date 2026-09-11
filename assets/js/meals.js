@@ -8,6 +8,13 @@
  *
  * slots  : which meal slots the dish is a sensible fit for
  * weight : 1 light, 2 medium, 3 hearty (used to balance a week)
+ *
+ * nutrition : one serving, for one person — kcal and grams of protein, carbs,
+ *   fibre and fat. Worked out from the ingredients above against per-100g
+ *   reference values, then divided by the portions the dish really makes (a
+ *   loaf or a whole chicken feeds more than two). Good enough to steer a
+ *   week's balance and show a household roughly where it stands; not a
+ *   laboratory figure, and not diet advice.
  */
 
 export const AISLES = ['produce', 'meat', 'fish', 'dairy', 'bakery', 'pantry', 'frozen', 'other'];
@@ -23,6 +30,7 @@ export const CATALOG = [
     slots: ['dinner'],
     time: 75,
     weight: 3,
+    nutrition: { kcal: 1050, protein: 55, carbs: 87, fibre: 7, fat: 52 },
     note: 'Sunday-ish comfort. Makes great leftovers for tomorrow’s lunch.',
     ingredients: [
       ['Beef mince', 150, 'g', 'person', 'meat'],
@@ -46,6 +54,7 @@ export const CATALOG = [
     slots: ['lunch', 'dinner'],
     time: 45,
     weight: 3,
+    nutrition: { kcal: 570, protein: 43, carbs: 29, fibre: 4, fat: 30 },
     note: 'Serve with bread, spaghetti or plain rice.',
     ingredients: [
       ['Beef mince', 140, 'g', 'person', 'meat'],
@@ -67,6 +76,7 @@ export const CATALOG = [
     slots: ['lunch', 'dinner'],
     time: 35,
     weight: 2,
+    nutrition: { kcal: 920, protein: 37, carbs: 71, fibre: 3, fat: 56 },
     note: 'Swap the chicken for chickpeas to make it vegetarian.',
     ingredients: [
       ['Chicken thighs', 150, 'g', 'person', 'meat'],
@@ -88,6 +98,7 @@ export const CATALOG = [
     slots: ['lunch', 'dinner'],
     time: 20,
     weight: 2,
+    nutrition: { kcal: 550, protein: 23, carbs: 74, fibre: 5, fat: 17 },
     note: 'Best with rice cooked the day before.',
     ingredients: [
       ['Jasmine rice', 80, 'g', 'person', 'pantry'],
@@ -108,6 +119,7 @@ export const CATALOG = [
     slots: ['lunch', 'dinner'],
     time: 18,
     weight: 2,
+    nutrition: { kcal: 630, protein: 20, carbs: 75, fibre: 4, fat: 27 },
     note: 'The quickest rescue dinner in the book.',
     ingredients: [
       ['Spaghetti', 100, 'g', 'person', 'pantry'],
@@ -128,6 +140,7 @@ export const CATALOG = [
     slots: ['lunch', 'dinner'],
     time: 25,
     weight: 1,
+    nutrition: { kcal: 495, protein: 24, carbs: 36, fibre: 5, fat: 28 },
     note: 'Eat it warm, cold, or in a sandwich the next day.',
     ingredients: [
       ['Egg', 2, '', 'person', 'dairy'],
@@ -147,6 +160,7 @@ export const CATALOG = [
     slots: ['dinner'],
     time: 40,
     weight: 3,
+    nutrition: { kcal: 740, protein: 24, carbs: 68, fibre: 9, fat: 43 },
     note: 'Onion gravy is not optional.',
     ingredients: [
       ['Sausages', 2, '', 'person', 'meat'],
@@ -167,6 +181,7 @@ export const CATALOG = [
     slots: ['lunch', 'dinner'],
     time: 30,
     weight: 2,
+    nutrition: { kcal: 565, protein: 32, carbs: 40, fibre: 8, fat: 31 },
     note: 'Twenty minutes in the oven with lemon and dill.',
     ingredients: [
       ['Salmon fillet', 1, '', 'person', 'fish'],
@@ -187,6 +202,7 @@ export const CATALOG = [
     slots: ['lunch', 'dinner'],
     time: 22,
     weight: 2,
+    nutrition: { kcal: 750, protein: 23, carbs: 75, fibre: 4, fat: 40 },
     note: 'Blitz basil, pine nuts, garlic, parmesan and good oil.',
     ingredients: [
       ['Basil', 2, 'bunch', 'dish', 'produce'],
@@ -207,6 +223,7 @@ export const CATALOG = [
     slots: ['lunch', 'dinner'],
     time: 15,
     weight: 1,
+    nutrition: { kcal: 945, protein: 46, carbs: 73, fibre: 8, fat: 54 },
     note: 'No cooking. Just a board, a knife and good ingredients.',
     ingredients: [
       ['Cured meats', 60, 'g', 'person', 'meat'],
@@ -228,6 +245,7 @@ export const CATALOG = [
     slots: ['dinner'],
     time: 50,
     weight: 3,
+    nutrition: { kcal: 765, protein: 37, carbs: 105, fibre: 5, fat: 20 },
     note: 'Friday night. Dough in the morning if you can.',
     ingredients: [
       ['Pizza flour', 130, 'g', 'person', 'pantry'],
@@ -247,6 +265,7 @@ export const CATALOG = [
     slots: ['dinner'],
     time: 55,
     weight: 3,
+    nutrition: { kcal: 440, protein: 36, carbs: 41, fibre: 7, fat: 15 },
     note: 'One tray, one wash-up.',
     ingredients: [
       ['Chicken thighs', 2, '', 'person', 'meat'],
@@ -267,6 +286,7 @@ export const CATALOG = [
     slots: ['lunch', 'dinner'],
     time: 30,
     weight: 2,
+    nutrition: { kcal: 910, protein: 29, carbs: 70, fibre: 5, fat: 56 },
     note: 'Jammy egg, plenty of broth, chilli oil on top.',
     ingredients: [
       ['Ramen noodles', 1, 'nest', 'person', 'pantry'],
@@ -287,6 +307,7 @@ export const CATALOG = [
     slots: ['lunch', 'dinner'],
     time: 25,
     weight: 2,
+    nutrition: { kcal: 950, protein: 38, carbs: 131, fibre: 27, fat: 33 },
     note: 'Everything on the table, everyone builds their own.',
     ingredients: [
       ['Tortillas', 3, '', 'person', 'bakery'],
@@ -307,6 +328,7 @@ export const CATALOG = [
     slots: ['lunch'],
     time: 15,
     weight: 1,
+    nutrition: { kcal: 630, protein: 26, carbs: 87, fibre: 8, fat: 21 },
     note: 'Big tomatoes, thick feta, no lettuce.',
     ingredients: [
       ['Tomatoes', 200, 'g', 'person', 'produce'],
@@ -327,6 +349,7 @@ export const CATALOG = [
     slots: ['dinner'],
     time: 40,
     weight: 2,
+    nutrition: { kcal: 570, protein: 19, carbs: 71, fibre: 2, fat: 20 },
     note: 'Stir, sip, repeat.',
     ingredients: [
       ['Arborio rice', 80, 'g', 'person', 'pantry'],
@@ -347,6 +370,7 @@ export const CATALOG = [
     slots: ['lunch', 'dinner'],
     time: 30,
     weight: 2,
+    nutrition: { kcal: 395, protein: 22, carbs: 46, fibre: 6, fat: 13 },
     note: 'Eggs poached in spiced tomato, bread for mopping.',
     ingredients: [
       ['Egg', 2, '', 'person', 'dairy'],
@@ -367,6 +391,7 @@ export const CATALOG = [
     slots: ['lunch', 'dinner'],
     time: 30,
     weight: 2,
+    nutrition: { kcal: 875, protein: 57, carbs: 131, fibre: 21, fat: 16 },
     note: 'Rice, beans, chicken, salsa, lime. Meal-prep friendly.',
     ingredients: [
       ['Chicken breast', 130, 'g', 'person', 'meat'],
@@ -387,6 +412,7 @@ export const CATALOG = [
     slots: ['lunch', 'dinner'],
     time: 45,
     weight: 1,
+    nutrition: { kcal: 465, protein: 26, carbs: 87, fibre: 21, fat: 2 },
     note: 'Whatever vegetables need using up.',
     ingredients: [
       ['Borlotti beans', 400, 'g', 'dish', 'pantry'],
@@ -407,6 +433,7 @@ export const CATALOG = [
     slots: ['dinner'],
     time: 90,
     weight: 3,
+    nutrition: { kcal: 765, protein: 45, carbs: 48, fibre: 7, fat: 43 },
     note: 'Keep the carcass — that is Monday’s soup.',
     ingredients: [
       ['Whole chicken', 1, '', 'dish', 'meat'],
@@ -427,6 +454,7 @@ export const CATALOG = [
     slots: ['lunch', 'dinner'],
     time: 20,
     weight: 2,
+    nutrition: { kcal: 370, protein: 37, carbs: 51, fibre: 6, fat: 2 },
     note: 'Hot pan, everything prepped before you start.',
     ingredients: [
       ['Prawns', 120, 'g', 'person', 'fish'],
@@ -447,6 +475,7 @@ export const CATALOG = [
     slots: ['lunch', 'dinner'],
     time: 30,
     weight: 3,
+    nutrition: { kcal: 695, protein: 37, carbs: 84, fibre: 13, fat: 25 },
     note: 'Toast the buns. Always toast the buns.',
     ingredients: [
       ['Veggie burger patties', 1, '', 'person', 'frozen'],
@@ -467,6 +496,7 @@ export const CATALOG = [
     slots: ['lunch', 'dinner'],
     time: 20,
     weight: 2,
+    nutrition: { kcal: 645, protein: 17, carbs: 69, fibre: 5, fat: 32 },
     note: 'Brown the butter properly and it tastes like a restaurant.',
     ingredients: [
       ['Gnocchi', 200, 'g', 'person', 'pantry'],
@@ -485,6 +515,7 @@ export const CATALOG = [
     slots: ['lunch'],
     time: 20,
     weight: 2,
+    nutrition: { kcal: 710, protein: 28, carbs: 88, fibre: 14, fat: 30 },
     note: 'Pickled onions make it.',
     ingredients: [
       ['Falafel', 4, '', 'person', 'other'],
@@ -505,6 +536,7 @@ export const CATALOG = [
     slots: ['dinner'],
     time: 150,
     weight: 3,
+    nutrition: { kcal: 585, protein: 39, carbs: 58, fibre: 9, fat: 14 },
     note: 'Long, lazy cooking. Start it early.',
     ingredients: [
       ['Stewing beef', 160, 'g', 'person', 'meat'],
@@ -525,6 +557,7 @@ export const CATALOG = [
     slots: ['lunch'],
     time: 10,
     weight: 1,
+    nutrition: { kcal: 665, protein: 29, carbs: 43, fibre: 4, fat: 43 },
     note: 'Only worth it with ripe tomatoes.',
     ingredients: [
       ['Buffalo mozzarella', 1, 'ball', 'person', 'dairy'],
@@ -544,6 +577,7 @@ export const CATALOG = [
     slots: ['lunch'],
     time: 25,
     weight: 2,
+    nutrition: { kcal: 650, protein: 44, carbs: 77, fibre: 10, fat: 18 },
     note: 'Sushi-grade tuna, sushi rice, plenty of pickle.',
     ingredients: [
       ['Sushi-grade tuna', 120, 'g', 'person', 'fish'],
@@ -564,6 +598,7 @@ export const CATALOG = [
     slots: ['lunch'],
     time: 12,
     weight: 1,
+    nutrition: { kcal: 420, protein: 28, carbs: 4, fibre: 1, fat: 32 },
     note: 'Three eggs, low heat, still soft in the middle.',
     ingredients: [
       ['Egg', 3, '', 'person', 'dairy'],
@@ -582,6 +617,7 @@ export const CATALOG = [
     slots: ['lunch', 'dinner'],
     time: 60,
     weight: 3,
+    nutrition: { kcal: 665, protein: 17, carbs: 23, fibre: 1, fat: 56 },
     note: 'Just as good cold the next day.',
     ingredients: [
       ['Shortcrust pastry', 1, 'roll', 'dish', 'frozen'],
@@ -602,6 +638,7 @@ export const CATALOG = [
     slots: ['dinner'],
     time: 60,
     weight: 3,
+    nutrition: { kcal: 945, protein: 53, carbs: 125, fibre: 18, fat: 25 },
     note: 'A square of dark chocolate at the end. Trust me.',
     ingredients: [
       ['Beef mince', 140, 'g', 'person', 'meat'],
@@ -623,6 +660,7 @@ export const CATALOG = [
     slots: ['lunch'],
     time: 20,
     weight: 1,
+    nutrition: { kcal: 615, protein: 26, carbs: 64, fibre: 4, fat: 28 },
     note: 'The rainy Tuesday special.',
     ingredients: [
       ['Tomato soup', 400, 'g', 'dish', 'pantry'],

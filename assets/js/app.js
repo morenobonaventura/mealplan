@@ -13,8 +13,10 @@ import {
 } from './store.js';
 import { AISLES } from './meals.js';
 import {
-  generateWeek, nextMealFor, candidatesFor, shoppingList, shoppingListText, formatQty,
+  generateWeek, nextMealFor, alternativesFor, bestMealFor,
+  shoppingList, shoppingListText, formatQty,
 } from './planner.js';
+import { weekNutrition, verdict, nutrientStatus, TARGETS } from './nutrition.js';
 import { planWeekWithAI, fetchFreeModels, FALLBACK_FREE_MODELS } from './ai.js';
 
 /* ------------------------------------------------------------- helpers -- */
@@ -125,6 +127,7 @@ function relativeWeek(iso) {
 
 function renderWeek() {
   const todayISO = toISO(new Date());
+  renderStats();
 
   $('#weekLabel').textContent = weekLabel(currentWeek);
   $('#weekRelative').textContent = relativeWeek(currentWeek);
@@ -177,6 +180,11 @@ function renderWeek() {
                       aria-label="${fav ? 'Unfavourite' : 'Favourite'} ${esc(meal.name)}">
                 ${fav ? '★' : '☆'}
               </button>
+              <button class="slot__act" type="button" data-slot-act="hide"
+                      title="Hide this meal and swap it out"
+                      aria-label="Hide ${esc(meal.name)} and swap in something else">
+                ⊘
+              </button>
             </div>
           </div>
         </div>`;
@@ -194,6 +202,127 @@ function renderWeek() {
           : '<p class="day__off">Not planning meals this day</p>'}
       </section>`;
   }).join('');
+}
+
+/**
+ * Take a meal out of circulation and fill the holes it leaves this week.
+ * Hiding is a standing "not for us", so the meal should not sit on the plan
+ * afterwards — every slot it occupied gets the best replacement going, chosen
+ * the same way a swap would be.
+ */
+function hideAndSwap(mealId, fromDay, fromSlot) {
+  const meal = mealById(mealId);
+  const name = meal ? meal.name : 'That meal';
+
+  toggleHidden(mealId);                       // hide first, so it cannot come back
+
+  // The slot the user was looking at goes first, then any other week it sits in.
+  const slots = [];
+  if (fromDay && fromSlot) slots.push({ day: fromDay, slot: fromSlot });
+  for (const day of DAYS) {
+    for (const slot of slotsForDay(day)) {
+      if (day === fromDay && slot === fromSlot) continue;
+      const entry = getEntry(currentWeek, day, slot);
+      if (entry && entry.mealId === mealId) slots.push({ day, slot });
+    }
+  }
+
+  const taken = [];
+  let replaced = 0;
+  for (const { day, slot } of slots) {
+    const entry = getEntry(currentWeek, day, slot);
+    if (!entry || entry.mealId !== mealId) continue;
+    const next = bestMealFor(currentWeek, day, slot, { exclude: taken });
+    setEntry(currentWeek, day, slot, next ? next.id : null);
+    if (next) { taken.push(next.id); replaced += 1; }
+  }
+
+  haptic();
+  toast(replaced
+    ? `${name} hidden — swapped for ${mealById(taken[0]).name}`
+    : `${name} hidden`);
+}
+
+/* ------------------------------------------------------- week balance -- */
+
+/** Plain words for how a number is doing — no numbers, no judgement. */
+const STATUS_WORD = {
+  kcal:    { low: 'light', good: 'just right', high: 'hearty' },
+  protein: { low: 'a bit low', good: 'just right', high: 'lots' },
+  carbs:   { low: 'a bit low', good: 'just right', high: 'lots' },
+  fibre:   { low: 'needs veg', good: 'just right', high: 'plenty' },
+};
+
+const TONE_MARK = {
+  good: '🥗', veg: '🥦', meat: '🍖', rich: '🧈',
+  protein: '🍗', light: '🍽️', empty: '📋',
+};
+
+/**
+ * The week at a glance: one friendly headline, then four everyday numbers.
+ * Shown per person per day so it reads like "a normal day" rather than a
+ * spreadsheet — and it only counts the meals the app plans, which is said
+ * out loud underneath so nobody reads it as a full daily total.
+ */
+function renderStats() {
+  const host = $('#weekStats');
+  const summary = weekNutrition(currentWeek);
+  const v = verdict(summary);
+
+  if (v.tone === 'empty') {
+    host.innerHTML = `
+      <div class="balance">
+        <div class="balance__head">
+          <div class="balance__mark">${TONE_MARK.empty}</div>
+          <div>
+            <div class="balance__title">${esc(v.title)}</div>
+            <div class="balance__detail">${esc(v.detail)}</div>
+          </div>
+        </div>
+      </div>`;
+    return;
+  }
+
+  const status = nutrientStatus(summary.perDay);
+  const shown = ['kcal', 'protein', 'carbs', 'fibre'];
+  const names = { kcal: 'Calories', protein: 'Protein', carbs: 'Carbs', fibre: 'Fibre' };
+
+  const stats = shown.map((k) => {
+    const value = summary.perDay[k];
+    const target = TARGETS[k];
+    // Fill the bar against the ideal, so a full bar reads as "a normal day".
+    const pct = Math.max(4, Math.min(100, Math.round((value / target.ideal) * 100)));
+    const off = status[k] !== 'good';
+    return `
+      <div class="balance__stat${off ? ' is-off' : ''}">
+        <div class="balance__value">${k === 'kcal' ? value.toLocaleString() : `${value}g`}</div>
+        <div class="balance__name">${names[k]}</div>
+        <div class="balance__track"><span class="balance__fill" style="width:${pct}%"></span></div>
+        <div class="balance__word">${STATUS_WORD[k][status[k]]}</div>
+      </div>`;
+  }).join('');
+
+  const meatFree = summary.meatless;
+  const plants = meatFree
+    ? `${meatFree} meat-free ${meatFree === 1 ? 'meal' : 'meals'} this week`
+    : 'no meat-free meals this week';
+
+  host.innerHTML = `
+    <div class="balance balance--${v.tone === 'good' ? 'good' : 'warn'}">
+      <div class="balance__head">
+        <div class="balance__mark">${TONE_MARK[v.tone] || TONE_MARK.good}</div>
+        <div>
+          <div class="balance__title">${esc(v.title)}</div>
+          <div class="balance__detail">${esc(v.detail)}</div>
+        </div>
+      </div>
+      <div class="balance__grid">${stats}</div>
+      <p class="balance__foot">
+        For one person on an average day · ${plants}<br>
+        Counts the lunches and dinners you have planned, not breakfast or snacks.${
+          summary.estimated ? ' Some of your own meals are rough estimates.' : ''}
+      </p>
+    </div>`;
 }
 
 /* -------------------------------------------------------- meal sheets -- */
@@ -229,7 +358,8 @@ function openSlotSheet(day, slot) {
       <button class="btn btn--primary btn--wide" data-act="swap">🔀 Choose another meal</button>
       <button class="btn" data-act="lock">${entry.locked ? '🔓 Unlock' : '🔒 Lock'}</button>
       <button class="btn" data-act="fav">${isFavourite(meal.id) ? '★ Favourited' : '☆ Favourite'}</button>
-      <button class="btn btn--ghost btn--wide" data-act="clear">Clear this slot</button>
+      <button class="btn" data-act="hide">⊘ Hide</button>
+      <button class="btn btn--ghost" data-act="clear">Clear this slot</button>
     </div>
   `, (root) => {
     root.addEventListener('click', (e) => {
@@ -239,6 +369,7 @@ function openSlotSheet(day, slot) {
       if (which === 'swap') { openPicker(day, slot); return; }
       if (which === 'lock') toggleLock(currentWeek, day, slot);
       if (which === 'fav') toggleFavourite(meal.id);
+      if (which === 'hide') hideAndSwap(meal.id, day, slot);
       if (which === 'clear') setEntry(currentWeek, day, slot, null);
       closeSheet();
     });
@@ -249,28 +380,31 @@ function openPicker(day, slot) {
   const entry = getEntry(currentWeek, day, slot);
   const currentId = entry ? entry.mealId : null;
 
+  // Ordered by what would keep the week balanced, best first, so the meals at
+  // the top of the list are the ones worth picking.
+  const ranked = alternativesFor(currentWeek, day, slot);
+
   const list = (query) => {
     const q = query.trim().toLowerCase();
-    return candidatesFor(slot)
-      .filter((m) => !q || m.name.toLowerCase().includes(q) || (m.cuisine || '').toLowerCase().includes(q))
-      .sort((a, b) => {
-        const fav = Number(isFavourite(b.id)) - Number(isFavourite(a.id));
-        return fav || a.name.localeCompare(b.name);
-      })
-      .map((m) => `
+    return ranked
+      .filter(({ meal: m }) => !q
+        || m.name.toLowerCase().includes(q)
+        || (m.cuisine || '').toLowerCase().includes(q))
+      .map(({ meal: m, good }) => `
         <button class="picker-item${m.id === currentId ? ' is-current' : ''}" type="button" data-meal="${esc(m.id)}">
           ${artHTML(m, 'sm')}
           <div class="picker-item__text">
             <b>${esc(m.name)}</b>
             <span>${mealMeta(m)}</span>
           </div>
+          ${good ? '<span class="picker-item__fit" title="Keeps your week balanced">🥗</span>' : ''}
           ${isFavourite(m.id) ? '<span>★</span>' : ''}
         </button>`).join('');
   };
 
   openSheet(`
     <h2>${SLOT_NAMES[slot]} on ${DAY_NAMES[day]}</h2>
-    <p class="sheet__sub">Pick a meal, or search for one</p>
+    <p class="sheet__sub">Best for your week first — 🥗 keeps it balanced</p>
     <label class="field">
       <span class="sr-only">Search</span>
       <input class="input" type="search" id="pickerSearch" placeholder="Search meals…" autocomplete="off">
@@ -450,8 +584,10 @@ function bindGestures() {
     const slotEl = act.closest('.slot');
     const entry = getEntry(currentWeek, slotEl.dataset.day, slotEl.dataset.slot);
     if (!entry) return;
-    if (act.dataset.slotAct === 'lock') toggleLock(currentWeek, slotEl.dataset.day, slotEl.dataset.slot);
-    else toggleFavourite(entry.mealId);
+    const which = act.dataset.slotAct;
+    if (which === 'lock') toggleLock(currentWeek, slotEl.dataset.day, slotEl.dataset.slot);
+    else if (which === 'fav') toggleFavourite(entry.mealId);
+    else if (which === 'hide') { hideAndSwap(entry.mealId, slotEl.dataset.day, slotEl.dataset.slot); return; }
     haptic(10);
   });
 

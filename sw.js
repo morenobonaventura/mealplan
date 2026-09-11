@@ -1,6 +1,6 @@
 /* MealPlan service worker: cache-first for the shell, so the app opens
    instantly and keeps working with no connection at all. */
-const CACHE = 'mealplan-v2';
+const CACHE = 'mealplan-v3';
 
 const SHELL = [
   './',
@@ -11,6 +11,7 @@ const SHELL = [
   './assets/js/store.js',
   './assets/js/meals.js',
   './assets/js/planner.js',
+  './assets/js/nutrition.js',
   './assets/js/ai.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
