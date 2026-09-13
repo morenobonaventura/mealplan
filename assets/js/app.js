@@ -90,13 +90,72 @@ function toast(message, undo = null) {
 
 let sheetCleanup = null;
 
+/**
+ * Keep the sheet clear of the on-screen keyboard.
+ *
+ * iOS does not shrink the layout viewport when the keyboard opens — it shrinks
+ * the *visual* viewport and scrolls the page. A sheet pinned to bottom: 0 is
+ * therefore left sitting behind the keyboard, which is what made searching for
+ * a meal look broken. Measuring the gap ourselves and pushing the sheet up by
+ * it keeps the search field and its results where the thumb can reach them.
+ */
+const viewport = window.visualViewport;
+
+function syncSheetToKeyboard() {
+  if (!viewport || !sheetIsOpen()) return;
+  const covered = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+  const root = document.documentElement;
+  root.style.setProperty('--kb', `${Math.round(covered)}px`);
+  root.style.setProperty('--sheet-max', `${Math.round(Math.max(200, viewport.height - 16))}px`);
+  // With a keyboard taking half the screen, the sheet's heading is a luxury —
+  // drop it so the results get the room.
+  $('#sheet').classList.toggle('sheet--keyboard', covered > 120);
+}
+
+function clearKeyboardOffset() {
+  const root = document.documentElement;
+  root.style.removeProperty('--kb');
+  root.style.removeProperty('--sheet-max');
+}
+
+/**
+ * Freeze the page behind the sheet. Setting overflow alone does not hold on
+ * iOS, so the body is pinned at its current offset and restored on close.
+ */
+let lockedScrollY = 0;
+
+function lockBackground() {
+  lockedScrollY = window.scrollY;
+  const { style } = document.body;
+  style.position = 'fixed';
+  style.top = `-${lockedScrollY}px`;
+  style.left = '0';
+  style.right = '0';
+  style.overflow = 'hidden';
+}
+
+function unlockBackground() {
+  const { style } = document.body;
+  style.position = '';
+  style.top = '';
+  style.left = '';
+  style.right = '';
+  style.overflow = '';
+  window.scrollTo(0, lockedScrollY);
+}
+
 function openSheet(html, onMount) {
   const sheet = $('#sheet');
   $('#sheetBody').innerHTML = html;
+  if (!sheetIsOpen()) lockBackground();
   sheet.classList.add('is-open');
   sheet.setAttribute('aria-hidden', 'false');
   $('#scrim').classList.add('is-open');
-  document.body.style.overflow = 'hidden';
+  if (viewport) {
+    viewport.addEventListener('resize', syncSheetToKeyboard);
+    viewport.addEventListener('scroll', syncSheetToKeyboard);
+    syncSheetToKeyboard();
+  }
   sheetCleanup = typeof onMount === 'function' ? onMount($('#sheetBody')) : null;
 }
 
@@ -106,7 +165,13 @@ function closeSheet() {
   sheet.classList.remove('is-open');
   sheet.setAttribute('aria-hidden', 'true');
   $('#scrim').classList.remove('is-open');
-  document.body.style.overflow = '';
+  if (viewport) {
+    viewport.removeEventListener('resize', syncSheetToKeyboard);
+    viewport.removeEventListener('scroll', syncSheetToKeyboard);
+  }
+  clearKeyboardOffset();
+  sheet.classList.remove('sheet--keyboard');
+  unlockBackground();
   if (typeof sheetCleanup === 'function') sheetCleanup();
   sheetCleanup = null;
 }
@@ -429,7 +494,7 @@ function openPicker(day, slot) {
   openSheet(`
     <h2>${SLOT_NAMES[slot]} on ${DAY_NAMES[day]}</h2>
     <p class="sheet__sub">Best for your week first — 🥗 keeps it balanced</p>
-    <label class="field">
+    <label class="field field--sticky">
       <span class="sr-only">Search</span>
       <input class="input" type="search" id="pickerSearch" placeholder="Search meals…" autocomplete="off">
     </label>

@@ -335,8 +335,10 @@ button, a, label, summary, input, select, textarea, [role='button'] {
 
 .sheet {
   position: fixed; z-index: 60;
-  left: 0; right: 0; bottom: 0;
-  max-height: 88vh; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  left: 0; right: 0;
+  bottom: var(--kb, 0px);            /* keyboard height, set from visualViewport */
+  max-height: min(88vh, var(--sheet-max, 88vh));
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
   background: var(--surface);
   border-radius: 26px 26px 0 0;
   box-shadow: var(--shadow-lg);
@@ -403,7 +405,8 @@ button, a, label, summary, input, select, textarea, [role='button'] {
 .input, select.input, textarea.input {
   width: 100%; padding: 12px 14px;
   background: var(--surface-2); border: 1px solid var(--line);
-  border-radius: var(--radius-sm); font-size: 15px;
+  border-radius: var(--radius-sm);
+  font-size: 16px;                  /* under 16px iOS zooms in on focus */
   -webkit-appearance: none; appearance: none;
 }
 textarea.input { min-height: 74px; resize: vertical; }
@@ -574,7 +577,7 @@ select.input {
 .ing-row [data-f="scale"] { grid-area: scale; }
 .ing-row [data-f="aisle"] { grid-area: aisle; }
 .ing-row [data-remove] { grid-area: remove; padding: 0; color: var(--muted); }
-.ing-row .input { padding: 9px 11px; font-size: 14px; background: var(--surface); }
+.ing-row .input { padding: 9px 11px; font-size: 16px; background: var(--surface); }
 @media (min-width: 560px) {
   .ing-row {
     grid-template-columns: 1.4fr 70px 1fr 1fr 1fr 34px;
@@ -731,3 +734,16 @@ select.input {
   text-decoration: underline; text-underline-offset: 2px;
   padding: 2px 0; touch-action: manipulation;
 }
+
+/* ------------------------------------------------ sheet with a keyboard up */
+.field--sticky {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--surface);
+  padding-top: 4px; padding-bottom: 8px; margin-bottom: 6px;
+}
+
+.sheet--keyboard { padding-top: 4px; }
+.sheet--keyboard .sheet__grip { margin: 2px auto 8px; }
+.sheet--keyboard h2 { font-size: 17px; }
+.sheet--keyboard .sheet__sub { display: none; }
+.sheet--keyboard .detail { margin-bottom: 8px; }
